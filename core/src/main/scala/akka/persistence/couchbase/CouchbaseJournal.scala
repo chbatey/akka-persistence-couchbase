@@ -162,9 +162,11 @@ class CouchbaseJournal(config: Config, configPath: String)
         .put(Fields.WriterUuid, write.payload.head.writerUuid.toString)
         .put(Fields.Messages, JsonArray.from(messagesJson.asJava))
 
-      JsonDocument.create(s"$pid-${write.lowestSequenceNr}", insert)
+      JsonDocument.create(documentId(pid, write.lowestSequenceNr), insert)
     }(ExecutionContexts.sameThreadExecutionContext)
   }
+
+  private def documentId(pid: String, lowestSequenceNr: Long): String = s"$pid-$lowestSequenceNr"
 
   override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
     withCouchbaseSession { session =>
@@ -238,22 +240,35 @@ class CouchbaseJournal(config: Config, configPath: String)
     replayFinished
   }
 
-  override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] =
+  override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
+    def toLong(in: Option[JsonObject]): Long = in match {
+      case Some(jsonObj) =>
+        if (jsonObj.get("max") != null)
+          jsonObj.getLong("max")
+        else
+          0L
+      case None =>
+        0L
+    }
+
     withCouchbaseSession { session =>
       log.debug("asyncReadHighestSequenceNr {} {}", persistenceId, fromSequenceNr)
 
       val query = highestSequenceNrQuery(persistenceId, fromSequenceNr, replayConsistency)
       log.debug("Executing: {}", query)
-
-      session
-        .singleResponseQuery(query)
-        .map {
-          case Some(jsonObj) =>
-            log.debug("sequence nr: {}", jsonObj)
-            if (jsonObj.get("max") != null) jsonObj.getLong("max")
-            else 0L
-          case None => // should never happen
-            0L
+      for {
+        seqNr <- session.singleResponseQuery(query).map(toLong)
+        nextSequenceNr <- session.get(documentId(persistenceId, seqNr + 1))
+      } yield {
+        nextSequenceNr match {
+          case None =>
+            seqNr
+          case Some(_) =>
+            throw new RuntimeException(
+              s"Read highest sequence nr $seqNr but found document with id ${documentId(persistenceId, seqNr + 1)}"
+            )
         }
+      }
     }
+  }
 }
