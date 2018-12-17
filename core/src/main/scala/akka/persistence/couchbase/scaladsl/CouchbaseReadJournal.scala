@@ -10,15 +10,7 @@ import akka.NotUsed
 import akka.actor.ExtendedActorSystem
 import akka.annotation.InternalApi
 import akka.event.Logging
-import akka.persistence.couchbase.internal.{
-  AsyncCouchbaseSession,
-  CouchbaseSchema,
-  N1qlQueryStage,
-  TimeBasedUUIDComparator,
-  TimeBasedUUIDSerialization,
-  TimeBasedUUIDs,
-  UUIDTimestamp
-}
+import akka.persistence.couchbase.internal.{AsyncCouchbaseSession, CouchbaseSchema, N1qlQueryStage, TimeBasedUUIDSerialization, TimeBasedUUIDs, UUIDTimestamp}
 import akka.persistence.couchbase.internal.CouchbaseSchema.Fields
 import akka.persistence.couchbase.{CouchbaseReadJournalSettings, OutOfOrderEventException}
 import akka.persistence.query._
@@ -28,12 +20,11 @@ import akka.stream.ActorMaterializer
 import akka.stream.alpakka.couchbase.CouchbaseSessionRegistry
 import akka.stream.alpakka.couchbase.scaladsl.CouchbaseSession
 import akka.stream.scaladsl.{Sink, Source}
-import com.couchbase.client.java.document.json.JsonObject
 import com.couchbase.client.java.query._
+import com.couchbase.client.java.query.consistency.ScanConsistency
 import com.typesafe.config.Config
 
 import scala.collection.mutable
-import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
@@ -122,9 +113,7 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
           )
       )
     }
-    checkF.onComplete {
-      case _ => materializer.shutdown()
-    }
+    checkF.onComplete(_ => materializer.shutdown())
   }
 
   /**
@@ -155,6 +144,9 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
                                      toSequenceNr: Long): Source[EventEnvelope, NotUsed] =
     internalEventsByPersistenceId(live = true, persistenceId, fromSequenceNr, toSequenceNr)
 
+  // Should this be configurable?
+  private val queryConsistency = N1qlParams.build().consistency(ScanConsistency.REQUEST_PLUS)
+
   /**
    * Same type of query as `eventsByPersistenceId` but the event stream
    * is completed immediately when it reaches the end of the "result set". Events that are
@@ -162,8 +154,14 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
    */
   override def currentEventsByPersistenceId(persistenceId: String,
                                             fromSequenceNr: Long,
-                                            toSequenceNr: Long): Source[EventEnvelope, NotUsed] =
-    internalEventsByPersistenceId(live = false, persistenceId, fromSequenceNr, toSequenceNr)
+                                            toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
+
+    Source.fromFutureSource((if (toSequenceNr == Long.MaxValue) {
+      session.flatMap(s => s.singleResponseQuery(highestSequenceNrQuery(persistenceId, fromSequenceNr, queryConsistency))).map(mapHighestSequenceNr)
+    } else {
+      Future.successful(toSequenceNr)
+    }).map { toSeq => internalEventsByPersistenceId(live = false, persistenceId, fromSequenceNr, toSeq) }).mapMaterializedValue(_ => NotUsed)
+  }
 
   private def internalEventsByPersistenceId(live: Boolean,
                                             persistenceId: String,
@@ -286,7 +284,7 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
             // offset delay ms back in time from now
             TimeBasedUUIDs.create(
               UUIDTimestamp.fromUnixTimestamp(
-                System.currentTimeMillis() - (settings.eventByTagSettings.eventualConsistencyDelay.toMillis)
+                System.currentTimeMillis() - settings.eventByTagSettings.eventualConsistencyDelay.toMillis
               ),
               TimeBasedUUIDs.MinLSB
             )
@@ -393,7 +391,7 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
       .statefulMapConcat[String] { () =>
         var seenIds = Set.empty[String]
 
-        { (row) =>
+        { row =>
           val id = row.value().getString(Fields.PersistenceId)
           if (seenIds.contains(id)) Nil
           else {

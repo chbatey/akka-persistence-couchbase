@@ -270,7 +270,7 @@ class EventsByTagSpec extends AbstractQuerySpec("EventsByTagSpec") {
       tag3evt1 should matchPattern { case EventEnvelope(_, `pid1`, 3L, `msg2`) => }
     }
 
-    "find existing events with an offset into a batch" in new Setup {
+    "find existing events with an offset into an atomic write" in new Setup {
 
       val tag1 = newTag()
       val tag2 = newTag()
@@ -308,7 +308,7 @@ class EventsByTagSpec extends AbstractQuerySpec("EventsByTagSpec") {
       tag1fromOffset.head should matchPattern { case EventEnvelope(_, `pid`, _, `msg3`) => }
     }
 
-    "find existing events with an offset into multiple batches" in new Setup {
+    "find existing events with an offset into multiple atomic writes" in new Setup {
       val (pid1, ref1) = startPersistentActor(0)
       val (pid2, ref2) = startPersistentActor(0)
       val tag1 = newTag()

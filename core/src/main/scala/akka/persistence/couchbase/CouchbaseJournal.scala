@@ -250,13 +250,6 @@ class CouchbaseJournal(config: Config, configPath: String)
 
       session
         .singleResponseQuery(query)
-        .map {
-          case Some(jsonObj) =>
-            log.debug("sequence nr: {}", jsonObj)
-            if (jsonObj.get("max") != null) jsonObj.getLong("max")
-            else 0L
-          case None => // should never happen
-            0L
-        }
+        .map(mapHighestSequenceNr)
     }
 }
