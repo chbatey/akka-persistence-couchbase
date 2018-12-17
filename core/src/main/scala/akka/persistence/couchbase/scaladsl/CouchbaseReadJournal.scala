@@ -10,7 +10,14 @@ import akka.NotUsed
 import akka.actor.ExtendedActorSystem
 import akka.annotation.InternalApi
 import akka.event.Logging
-import akka.persistence.couchbase.internal.{AsyncCouchbaseSession, CouchbaseSchema, N1qlQueryStage, TimeBasedUUIDSerialization, TimeBasedUUIDs, UUIDTimestamp}
+import akka.persistence.couchbase.internal.{
+  AsyncCouchbaseSession,
+  CouchbaseSchema,
+  N1qlQueryStage,
+  TimeBasedUUIDSerialization,
+  TimeBasedUUIDs,
+  UUIDTimestamp
+}
 import akka.persistence.couchbase.internal.CouchbaseSchema.Fields
 import akka.persistence.couchbase.{CouchbaseReadJournalSettings, OutOfOrderEventException}
 import akka.persistence.query._
@@ -154,14 +161,22 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
    */
   override def currentEventsByPersistenceId(persistenceId: String,
                                             fromSequenceNr: Long,
-                                            toSequenceNr: Long): Source[EventEnvelope, NotUsed] = {
-
-    Source.fromFutureSource((if (toSequenceNr == Long.MaxValue) {
-      session.flatMap(s => s.singleResponseQuery(highestSequenceNrQuery(persistenceId, fromSequenceNr, queryConsistency))).map(mapHighestSequenceNr)
-    } else {
-      Future.successful(toSequenceNr)
-    }).map { toSeq => internalEventsByPersistenceId(live = false, persistenceId, fromSequenceNr, toSeq) }).mapMaterializedValue(_ => NotUsed)
-  }
+                                            toSequenceNr: Long): Source[EventEnvelope, NotUsed] =
+    Source
+      .fromFutureSource(
+        (if (toSequenceNr == Long.MaxValue) {
+           session
+             .flatMap(
+               s => s.singleResponseQuery(highestSequenceNrQuery(persistenceId, fromSequenceNr, queryConsistency))
+             )
+             .map(mapHighestSequenceNr)
+         } else {
+           Future.successful(toSequenceNr)
+         }).map { toSeq =>
+          internalEventsByPersistenceId(live = false, persistenceId, fromSequenceNr, toSeq)
+        }
+      )
+      .mapMaterializedValue(_ => NotUsed)
 
   private def internalEventsByPersistenceId(live: Boolean,
                                             persistenceId: String,
