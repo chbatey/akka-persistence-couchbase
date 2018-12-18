@@ -151,9 +151,6 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
                                      toSequenceNr: Long): Source[EventEnvelope, NotUsed] =
     internalEventsByPersistenceId(live = true, persistenceId, fromSequenceNr, toSequenceNr)
 
-  // Should this be configurable?
-  private val queryConsistency = N1qlParams.build().consistency(ScanConsistency.REQUEST_PLUS)
-
   /**
    * Same type of query as `eventsByPersistenceId` but the event stream
    * is completed immediately when it reaches the end of the "result set". Events that are
@@ -167,7 +164,7 @@ final class CouchbaseReadJournal(eas: ExtendedActorSystem, config: Config, confi
         (if (toSequenceNr == Long.MaxValue) {
            session
              .flatMap(
-               s => s.singleResponseQuery(highestSequenceNrQuery(persistenceId, fromSequenceNr, queryConsistency))
+               s => s.singleResponseQuery(highestSequenceNrQuery(persistenceId, fromSequenceNr))
              )
              .map(mapHighestSequenceNr)
          } else {

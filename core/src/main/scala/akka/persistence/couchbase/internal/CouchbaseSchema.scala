@@ -148,7 +148,9 @@ private[akka] final object CouchbaseSchema {
          |AND m.sequence_nr >= $$from
       """.stripMargin
 
-    protected def highestSequenceNrQuery(persistenceId: String, fromSequenceNr: Long, params: N1qlParams): N1qlQuery =
+    protected def highestSequenceNrQuery(persistenceId: String,
+                                         fromSequenceNr: Long,
+                                         params: N1qlParams = N1qlParams.build()): N1qlQuery =
       N1qlQuery.parameterized(
         highestSequenceNrStatement,
         JsonObject

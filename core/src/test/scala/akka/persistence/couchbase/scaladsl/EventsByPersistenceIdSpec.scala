@@ -159,9 +159,6 @@ class EventsByPersistenceIdSpec extends AbstractQuerySpec("EventsByPersistenceId
         events.map(_.event) should ===(List(s"$pid-$seqNrAfterInitial"))
       }
 
-      // here comes the weird part, the query stage should fill up one page and not do another query until
-      // we reach the end of it, but then that second query should see the new event and fail this test
-      // but it doesn't
       val expectedEvents = ((notTheEntireFirstPage + 1L) to initialPersistedEvents).map(n => s"$pid-$n")
       system.log.info("Second expect: " + expectedEvents)
       streamProbe
