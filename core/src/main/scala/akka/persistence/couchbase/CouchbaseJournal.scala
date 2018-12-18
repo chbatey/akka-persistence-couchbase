@@ -5,6 +5,7 @@
 package akka.persistence.couchbase
 
 import akka.NotUsed
+import akka.actor.ActorRef
 import akka.annotation.InternalApi
 import akka.dispatch.ExecutionContexts
 import akka.event.Logging
@@ -35,6 +36,7 @@ import scala.util.{Failure, Success, Try}
 private[akka] object CouchbaseJournal {
 
   final case class PersistentActorTerminated(persistenceId: String)
+  final case class NewPersistentActor(ref: ActorRef, persistenceId: String)
 
   private val ExtraSuccessFulUnit: Try[Unit] = Success(())
 
@@ -105,6 +107,9 @@ class CouchbaseJournal(config: Config, configPath: String)
     case PersistentActorTerminated(pid) =>
       log.debug("Persistent actor [{}] stopped, flushing tag-seq-nrs")
       evictSeqNrsFor(pid)
+    case NewPersistentActor(ref, persistenceId) =>
+      // watch the persistent actor so that we can flush tag-seq-nrs for it when it stops
+      context.watchWith(ref, PersistentActorTerminated(persistenceId))
   }
 
   override def asyncWriteMessages(messages: im.Seq[AtomicWrite]): Future[im.Seq[Try[Unit]]] = {
@@ -230,8 +235,7 @@ class CouchbaseJournal(config: Config, configPath: String)
           // For debugging while developing
           case Failure(ex) => log.error(ex, "Replay error for [{}]", persistenceId)
           case _ =>
-            // watch the persistent actor so that we can flush tag-seq-nrs for it when it stops
-            context.watchWith(persistentActor, PersistentActorTerminated(persistenceId))
+            self ! NewPersistentActor(persistentActor, persistenceId)
         }
 
         complete
