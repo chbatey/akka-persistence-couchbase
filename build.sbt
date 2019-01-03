@@ -62,6 +62,12 @@ def common: Seq[Setting[_]] = Seq(
   fork := true
 )
 
+lazy val dontPublish = Seq(
+  skip in publish := true,
+  whitesourceIgnore := true,
+  publishArtifact in Compile := false
+)
+
 def multiJvmTestSettings: Seq[Setting[_]] =
   SbtMultiJvm.multiJvmSettings ++ Seq(
     // `database.port` required for multi-dc tests that extend AbstractClusteredPersistentEntityConfig
@@ -70,17 +76,17 @@ def multiJvmTestSettings: Seq[Setting[_]] =
 
 lazy val root = (project in file("."))
   .settings(common)
+  .settings(dontPublish)
   .settings(
     name := "akka-persistence-couchbase-root",
-    publishArtifact := false,
-    publishTo := Some(Resolver.file("Unused transient repository", file("target/unusedrepo"))),
-    skip in publish := true
+    publishTo := Some(Resolver.file("Unused transient repository", file("target/unusedrepo")))
   )
   .aggregate((Seq(couchbaseClient, core, docs) ++ lagomModules).map(Project.projectToRef): _*)
 
 // TODO this should eventually be an alpakka module
 lazy val couchbaseClient = (project in file("couchbase-client"))
   .settings(common)
+  .settings(AutomaticModuleName.settings("akka.stream.alpakka.couchbase"))
   .settings(
     name := "akka-persistence-couchbase-client",
     libraryDependencies := Dependencies.couchbaseClient
@@ -88,6 +94,7 @@ lazy val couchbaseClient = (project in file("couchbase-client"))
 
 lazy val core = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
+  .settings(AutomaticModuleName.settings("akka.persistence.couchbase"))
   .settings(common)
   .settings(
     name := "akka-persistence-couchbase",
@@ -118,16 +125,17 @@ lazy val lagomModules = Seq[Project](
 lazy val `copy-of-lagom-persistence-test` =
   (project in file("lagom-persistence-couchbase/copy-of-lagom-persistence-test"))
     .settings(common)
+    .settings(dontPublish)
     .settings(
       // This modules copy-pasted preserve it as is
       scalafmtOnCompile := false,
-      skip in publish := true,
       libraryDependencies := Dependencies.`copy-of-lagom-persistence-test`
     )
 
 lazy val `lagom-persistence-couchbase-core` = (project in file("lagom-persistence-couchbase/core"))
   .dependsOn(core % "compile;test->test", couchbaseClient)
   .settings(common)
+  .settings(AutomaticModuleName.settings("lagom.persistence.couchbase.core"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(
     name := "lagom-persistence-couchbase-core",
@@ -136,6 +144,7 @@ lazy val `lagom-persistence-couchbase-core` = (project in file("lagom-persistenc
 
 lazy val `lagom-persistence-couchbase-javadsl` = (project in file("lagom-persistence-couchbase/javadsl"))
   .settings(common)
+  .settings(AutomaticModuleName.settings("lagom.persistence.couchbase.javadsl"))
   .dependsOn(
     core % "compile;test->test",
     `lagom-persistence-couchbase-core` % "compile;test->test",
@@ -157,6 +166,7 @@ lazy val `lagom-persistence-couchbase-scaladsl` = (project in file("lagom-persis
     `copy-of-lagom-persistence-test` % "test->test"
   )
   .settings(common)
+  .settings(AutomaticModuleName.settings("lagom.persistence.couchbase.scaladsl"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(
     name := "lagom-scaladsl-persistence-couchbase",
@@ -170,10 +180,9 @@ lazy val docs = project
   .in(file("docs"))
   .enablePlugins(AkkaParadoxPlugin)
   .settings(common)
+  .settings(dontPublish)
   .settings(
     name := "Akka Persistence Couchbase",
-    skip in publish := true,
-    whitesourceIgnore := true,
     paradoxGroups := Map("Language" -> Seq("Java", "Scala")),
     paradoxProperties ++= Map(
       "project.url" -> "https://doc.akka.io/docs/akka-persistence-couchbase/current/",

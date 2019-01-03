@@ -131,7 +131,7 @@ class EventsByPersistenceIdSpec extends AbstractQuerySpec("EventsByPersistenceId
           .currentEventsByPersistenceId(pid, 0L, Long.MaxValue)
           .runWith(Sink.seq)
           .futureValue
-        events should have size initialPersistedEvents
+        events should have size initialPersistedEvents.toLong
       }
       system.log.info("starting current query")
       val src = queries.currentEventsByPersistenceId(pid, 0L, Long.MaxValue)
@@ -153,13 +153,13 @@ class EventsByPersistenceIdSpec extends AbstractQuerySpec("EventsByPersistenceId
       // make sure we could observe the new event in a new query
       readingOurOwnWrites {
         val events = queries
-          .currentEventsByPersistenceId(pid, initialPersistedEvents + 1, Long.MaxValue)
+          .currentEventsByPersistenceId(pid, initialPersistedEvents + 1L, Long.MaxValue)
           .runWith(Sink.seq)
           .futureValue
         events.map(_.event) should ===(List(s"$pid-$seqNrAfterInitial"))
       }
 
-      val expectedEvents = ((notTheEntireFirstPage + 1L) to initialPersistedEvents).map(n => s"$pid-$n")
+      val expectedEvents = ((notTheEntireFirstPage + 1L) to initialPersistedEvents.toLong).map(n => s"$pid-$n")
       system.log.info("Second expect: " + expectedEvents)
       streamProbe
         .expectNoMessage(noMsgTimeout)
