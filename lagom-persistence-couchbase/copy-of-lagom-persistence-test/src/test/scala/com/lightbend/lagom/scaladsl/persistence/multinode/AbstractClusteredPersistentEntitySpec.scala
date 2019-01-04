@@ -14,7 +14,6 @@ import akka.testkit.ImplicitSender
 import com.lightbend.lagom.scaladsl.persistence._
 import com.lightbend.lagom.scaladsl.playjson.JsonSerializerRegistry
 import com.typesafe.config.{ Config, ConfigFactory }
-import org.slf4j.LoggerFactory
 import play.api.Environment
 
 import scala.concurrent.{ Await, Future }
@@ -82,7 +81,7 @@ object AbstractClusteredPersistentEntitySpec {
     reduced.head.replaceFirst(""".*\.""", "").replaceAll("[^a-zA-Z_0-9]", "_")
   }
 
-  def createActorSystem(jsonSerializerRegistry: JsonSerializerRegistry): (Config) => ActorSystem = { config =>
+  def createActorSystem(jsonSerializerRegistry: JsonSerializerRegistry): Config => ActorSystem = { config =>
     val setup = ActorSystemSetup(
       BootstrapSetup(ConfigFactory.load(config)),
       JsonSerializerRegistry.serializationSetupFor(jsonSerializerRegistry)
@@ -207,6 +206,7 @@ abstract class AbstractClusteredPersistentEntitySpec(config: AbstractClusteredPe
         ent =>
           val r = ent.ask(TestEntity.GetAddress)
           val h: Future[String] = r.map(_.hostPort) // compile check that the reply type is inferred correctly
+          h.onComplete(println) // Avoid compiler warning
           r.pipeTo(testActor)
           expectMsgType[Address]
       }.toSet
