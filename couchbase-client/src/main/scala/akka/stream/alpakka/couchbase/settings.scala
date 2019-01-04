@@ -61,30 +61,22 @@ final class CouchbaseWriteSettings private (val parallelism: Int,
                          timeout: FiniteDuration = timeout) =
     new CouchbaseWriteSettings(parallelism, replicateTo, persistTo, timeout)
 
-  override def equals(other: Any): Boolean = other match {
-    case that: CouchbaseWriteSettings =>
-      parallelism == that.parallelism &&
-      replicateTo == that.replicateTo &&
-      persistTo == that.persistTo &&
-      timeout == that.timeout
-    case _ => false
-  }
-
-  override def hashCode(): Int = {
-    31 * parallelism.hashCode() + 31 * replicateTo.hashCode() + 31 * persistTo.hashCode()
-    +31 * timeout.hashCode()
-  }
-
-  override def toString: String = s"CouchbaseWriteSettings($parallelism, $replicateTo, $persistTo, $timeout)"
+  override def toString: String =
+    "CouchbaseWriteSettings(" +
+    s"parallelism=$parallelism," +
+    s"replicateTo=$replicateTo," +
+    s"persistTo=$persistTo," +
+    s"timeout=${timeout.toCoarsest}" +
+    ")"
 }
 
 object CouchbaseSessionSettings {
 
   /**
-   * Scala API:
+   * Scala API: Load the session from the given config object, expects the config object to have the fields `username`,
+   * `password` and `nodes`. Using it means first looking your config namespace up yourself using `config.getConfig("some.path")`.
    */
   def apply(config: Config): CouchbaseSessionSettings = {
-    // FIXME environment from config
     val username = config.getString("username")
     val password = config.getString("password")
     val nodes = config.getStringList("nodes").asScala.toList
@@ -104,7 +96,8 @@ object CouchbaseSessionSettings {
     apply(username, password)
 
   /**
-   * Java API:
+   * Java API: Load the session from the given config object, expects the config object to have the fields `username`,
+   * `password` and `nodes`. Using it means first looking your config namespace up yourself using `config.getConfig("some.path")`.
    */
   def create(config: Config): CouchbaseSessionSettings = apply(config)
 
@@ -127,6 +120,7 @@ final class CouchbaseSessionSettings private (val username: String,
   def withNodes(nodes: immutable.Seq[String]): CouchbaseSessionSettings =
     copy(nodes = nodes)
 
+  /** Java API */
   def withNodes(nodes: java.util.List[String]): CouchbaseSessionSettings =
     copy(nodes = nodes.asScala.toList)
 
@@ -148,10 +142,14 @@ final class CouchbaseSessionSettings private (val username: String,
     case _ => false
   }
 
-  override def hashCode(): Int = {
-    val state = Seq(username, password, nodes, environment)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-  }
+  override def hashCode(): Int =
+    java.util.Objects.hash(username, password, nodes, environment)
 
-  override def toString = s"CouchbaseSessionSettings($username, *****, ${nodes.mkString("[", ", ", "]")}, $environment)"
+  override def toString =
+    "CouchbaseSessionSettings(" +
+    s"username=$username," +
+    s"password=*****," +
+    s"nodes=${nodes.mkString("[", ", ", "]")}," +
+    s"environment=$environment" +
+    ")"
 }

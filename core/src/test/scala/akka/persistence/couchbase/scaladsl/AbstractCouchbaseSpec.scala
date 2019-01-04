@@ -15,12 +15,17 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 
-abstract class AbstractCouchbaseSpecWithLogCapturing(testName: String, config: Config) extends AbstractCouchbaseSpec(testName, config) {
-  def this(testName: String) = this(testName, ConfigFactory.parseString("""
+abstract class AbstractCouchbaseSpecWithLogCapturing(testName: String, config: Config)
+    extends AbstractCouchbaseSpec(testName, config) {
+  def this(testName: String) =
+    this(
+      testName,
+      ConfigFactory.parseString("""
             couchbase-journal.read.page-size = 10
             akka.loggers = ["akka.testkit.SilenceAllTestEventListener"]
             akka.loglevel=debug
-          """))
+          """)
+    )
 }
 
 abstract class AbstractCouchbaseSpec(testName: String, config: Config)
@@ -69,7 +74,6 @@ abstract class AbstractCouchbaseSpec(testName: String, config: Config)
   protected val readOurOwnWritesTimeout = 10.seconds
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(readOurOwnWritesTimeout)
   implicit val materializer: Materializer = ActorMaterializer()
-
 
   lazy // #read-journal-access
   val queries: CouchbaseReadJournal =
