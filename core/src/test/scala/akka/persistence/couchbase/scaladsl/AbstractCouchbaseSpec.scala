@@ -16,7 +16,8 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
 
 abstract class AbstractCouchbaseSpecWithLogCapturing(testName: String, config: Config)
-    extends AbstractCouchbaseSpec(testName, config) {
+    extends AbstractCouchbaseSpec(testName, config)
+    with WithLogCapturing {
   def this(testName: String) =
     this(
       testName,
