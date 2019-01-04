@@ -158,7 +158,7 @@ class TestEntity(system: ActorSystem)
       .onCommand[ChangeMode, Evt] {
         case (ChangeMode(mode), ctx, state) => {
           mode match {
-            case mode if state.mode == mode => ctx.done
+            case m if state.mode == m => ctx.done
             case Mode.Append => ctx.thenPersist(InAppendMode)(ctx.reply)
             case Mode.Prepend => ctx.thenPersist(InPrependMode)(ctx.reply)
           }
@@ -172,7 +172,7 @@ class TestEntity(system: ActorSystem)
         case (Get, ctx, state) => ctx.reply(state)
       }
       .onReadOnlyCommand[GetAddress.type, Address] {
-        case (GetAddress, ctx, state) => ctx.reply(Cluster.get(system).selfAddress)
+        case (GetAddress, ctx, _) => ctx.reply(Cluster.get(system).selfAddress)
       }
       .onCommand[Clear.type, State] {
         case (Clear, ctx, state) => ctx.thenPersist(Cleared)(_ => ctx.reply(state))
@@ -193,12 +193,12 @@ class TestEntity(system: ActorSystem)
         case (InPrependMode, state) => state.copy(mode = Mode.Prepend)
       }
       .onCommand[Add, Evt] {
-        case (Add(elem, times), ctx, state) =>
+        case (Add(elem, times), ctx, _) =>
           // note that null should trigger NPE, for testing exception
           if (elem == null)
             throw new SimulatedNullpointerException
           if (elem.length == 0) {
-            ctx.invalidCommand("element must not be empty");
+            ctx.invalidCommand("element must not be empty")
             ctx.done
           }
           val appended = Appended(elem.toUpperCase)
@@ -215,9 +215,9 @@ class TestEntity(system: ActorSystem)
         case (InAppendMode, state) => state.copy(mode = Mode.Append)
       }
       .onCommand[Add, Evt] {
-        case (Add(elem, times), ctx, state) =>
+        case (Add(elem, times), ctx, _) =>
           if (elem == null || elem.length == 0) {
-            ctx.invalidCommand("element must not be empty");
+            ctx.invalidCommand("element must not be empty")
             ctx.done
           }
           val prepended = Prepended(elem.toLowerCase)

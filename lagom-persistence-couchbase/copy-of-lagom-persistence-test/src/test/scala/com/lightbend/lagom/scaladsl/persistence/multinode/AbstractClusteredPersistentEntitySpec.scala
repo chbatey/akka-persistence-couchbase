@@ -113,7 +113,7 @@ abstract class AbstractClusteredPersistentEntitySpec(config: AbstractClusteredPe
     if (ref.path.address.hasLocalScope) Cluster(system).selfAddress
     else ref.path.address
 
-  override protected def atStartup() {
+  override protected def atStartup(): Unit = {
     // Initialize components
     registry.register(new TestEntity(system))
     components.readSide.register(readSideProcessor())
@@ -218,11 +218,6 @@ abstract class AbstractClusteredPersistentEntitySpec(config: AbstractClusteredPe
       // this barrier at the beginning of the test will be run on all nodes and should be at the
       // beginning of the test to ensure it's run.
       enterBarrier("before-3")
-
-      runOn(node2) {
-        Await.ready(registry.gracefulShutdown(20.seconds), 20.seconds)
-      }
-      enterBarrier("node2-left")
 
       runOn(node1) {
         within(35.seconds) {
