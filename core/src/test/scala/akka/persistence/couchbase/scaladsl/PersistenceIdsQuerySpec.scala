@@ -11,7 +11,7 @@ import akka.testkit.TestProbe
 
 import scala.concurrent.duration._
 
-class PersistenceIdsQuerySpec extends AbstractCouchbaseSpecWithLogCapturing("PersistenceIdsQuerySpec") {
+class PersistenceIdsQuerySpec extends AbstractCouchbaseSpec("PersistenceIdsQuerySpec") {
 
   "currentPersistenceIds" must {
     "work" in {

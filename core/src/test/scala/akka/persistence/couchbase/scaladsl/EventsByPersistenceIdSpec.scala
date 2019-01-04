@@ -10,7 +10,7 @@ import akka.persistence.query.Offset
 import akka.stream.scaladsl.Sink
 import akka.stream.testkit.scaladsl.TestSink
 
-class EventsByPersistenceIdSpec extends AbstractCouchbaseSpecWithLogCapturing("EventsByPersistenceIdSpec") {
+class EventsByPersistenceIdSpec extends AbstractCouchbaseSpec("EventsByPersistenceIdSpec") {
 
   "Couchbase query EventsByPersistenceId" must {
 

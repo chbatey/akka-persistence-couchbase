@@ -15,20 +15,6 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 
-abstract class AbstractCouchbaseSpecWithLogCapturing(testName: String, config: Config)
-    extends AbstractCouchbaseSpec(testName, config)
-    with WithLogCapturing {
-  def this(testName: String) =
-    this(
-      testName,
-      ConfigFactory.parseString("""
-            couchbase-journal.read.page-size = 10
-            akka.loggers = ["akka.testkit.SilenceAllTestEventListener"]
-            akka.loglevel=debug
-          """)
-    )
-}
-
 abstract class AbstractCouchbaseSpec(testName: String, config: Config)
     extends TestKit(
       ActorSystem(testName, config.withFallback(ConfigFactory.load()))
@@ -37,7 +23,20 @@ abstract class AbstractCouchbaseSpec(testName: String, config: Config)
     with BeforeAndAfterAll
     with Matchers
     with ScalaFutures
-    with CouchbaseBucketSetup {
+    with CouchbaseBucketSetup
+    with WithLogCapturing {
+
+  def this(testName: String) =
+    this(
+      testName,
+      ConfigFactory.parseString("""
+            couchbase-journal.read {
+              page-size = 10
+            }
+            akka.loggers = ["akka.testkit.SilenceAllTestEventListener"]
+            akka.loglevel=debug
+          """)
+    )
 
   var idCounter = 0
   def nextPersistenceId(): String = {
